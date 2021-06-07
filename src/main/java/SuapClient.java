@@ -1,5 +1,8 @@
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -10,7 +13,6 @@ import java.util.Arrays;
 
 public class SuapClient {
 
-    CloseableHttpClient client = HttpClients.createDefault();
     private final String apiURL;
     private String token;
 
@@ -18,19 +20,48 @@ public class SuapClient {
         this.apiURL = apiURL;
     }
 
-    public void login(String username, String password) throws Exception {
+    public RequestHandler login(String username, String password) {
 
-        HttpPost post = new HttpPost(apiURL + "autenticacao/token/");
+        return new RequestHandler() {
 
-        post.setEntity(new UrlEncodedFormEntity(Arrays.asList(
-                new BasicNameValuePair("username", username),
-                new BasicNameValuePair("password", password)
-        )));
+            @Override
+            public void execute() {
+                try (CloseableHttpClient client = HttpClients.createDefault()) {
 
-        CloseableHttpResponse response = client.execute(post);
+                    HttpPost post = new HttpPost(apiURL + "autenticacao/token/");
 
-        System.out.println(EntityUtils.toString(response.getEntity()));
+                    post.setEntity(new UrlEncodedFormEntity(Arrays.asList(
+                            new BasicNameValuePair("username", username),
+                            new BasicNameValuePair("password", password)
+                    )));
 
+                    HttpResponse httpResponse = client.execute(post);
+                    String response = EntityUtils.toString(httpResponse.getEntity());
+                    int responseStatusCode = httpResponse.getStatusLine().getStatusCode();
+                    JsonObject jsonObject = JsonParser.parseString(response).getAsJsonObject();
+
+                    if (responseStatusCode == HttpStatus.SC_OK) {
+                        if (jsonObject.has("token")) {
+                            token = jsonObject.get("token").getAsString();
+                        }
+                    } else {
+                        if (jsonObject.has("detail")) {
+                            throw new Exception(jsonObject.get("detail").getAsString());
+                        }
+                        throw new Exception("Erro não identificado");
+                    }
+
+                } catch (Exception e) {
+                    handleError(e);
+                }
+            }
+
+        };
+
+    }
+
+    public boolean isAuthorized() {
+        return token != null;
     }
 
 }
