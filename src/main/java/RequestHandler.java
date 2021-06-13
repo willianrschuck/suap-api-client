@@ -1,10 +1,10 @@
 import java.util.function.Consumer;
 
-public abstract class RequestHandler {
+public abstract class RequestHandler<T> {
 
     private Consumer<Error> errorConsumer;
 
-    public abstract void execute();
+    public abstract T execute();
 
     protected final void handleError(Throwable e) {
         e.printStackTrace();
@@ -13,7 +13,7 @@ public abstract class RequestHandler {
         }
     }
 
-    public final RequestHandler onError(Consumer<Error> r) {
+    public final RequestHandler<T> onError(Consumer<Error> r) {
         errorConsumer = r;
         return this;
     }
